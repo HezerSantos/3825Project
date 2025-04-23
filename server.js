@@ -10,6 +10,7 @@ const options = {
 //Data structure to keep track of clients
 const socketMap = new Map()
 const messageMap = new Map()
+const idMap = new Set()
 
 
 //Id tracker to remember what Ids have been given
@@ -42,7 +43,7 @@ const server = tls.createServer(options, (socket) => {
 
     //Map that uses the socketId as a key and SocketData as value
     socketMap.set(socketIdAutoIncrement, socketData)
-    
+    idMap.add(socketIdAutoIncrement)
     console.log(`Client${socketIdAutoIncrement} connected`);
 
 
@@ -59,6 +60,8 @@ const server = tls.createServer(options, (socket) => {
                 senderSocket.socket.write("     Example: --search 1\n\n")
                 senderSocket.socket.write(" Search by message contains message: --search {message}\n")
                 senderSocket.socket.write("     Example: --search hello\n\n")
+                senderSocket.socket.write(" Send message to specific clientId: --target {clientId} {message}\n")
+                senderSocket.socket.write("     Example: --target 1 hello world\n\n")
                 return
             }
 
@@ -70,10 +73,36 @@ const server = tls.createServer(options, (socket) => {
 
             //If the message is sent with an option, the option is processed
 
+            //Edge case for target messages
+            if(message[0] === '--target'){  
+                const targetId = parseInt(message[1])               //Gets the client Id
+                const targetMessage = message.slice(2).join(" ")    //Gets the target message
+                if(Number.isNaN(targetId)){                         //Checks if client is an int
+                    socket.write("Invalid Client Id")
+                    return
+                }
+
+                if(targetId === socketId){                          //Case if trying to target self
+                    socket.write("Cannot target yourself")
+                    return
+                }
+
+                if(!idMap.has(targetId)){                           //Case to check if client Id exists
+                    socket.write("Client Id does not exist")
+                    return
+                }
+
+                const targetSocket = socketMap.get(targetId)        //Gets the target socket
+
+                targetSocket.socket.write(`DM from Client${socketId}: ${targetMessage}\n`)    //Sends the message to targetSocket
+                return
+
+            }
+
             //Edge Case for if the options is --reply
             if(message[0] === '--reply'){
                 //Edge case for no messages yet
-                if(messageMap.length === 0){
+                if(messageMap.size === 0){
                     senderSocket.socket.write("No messages to reply to\n")
                     return
                 }
@@ -186,6 +215,7 @@ const server = tls.createServer(options, (socket) => {
     //Socket close handler
     socket.on('end', () => {
     socketMap.delete(socketId)
+    idMap.delete(socketId)
     console.log('Client disconnected');
     });
 });
