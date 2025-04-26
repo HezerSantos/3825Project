@@ -10,7 +10,6 @@ const options = {
 //Data structure to keep track of clients
 const socketMap = new Map()
 const messageMap = new Map()
-const idMap = new Set()
 
 
 //Id tracker to remember what Ids have been given
@@ -43,7 +42,6 @@ const server = tls.createServer(options, (socket) => {
 
     //Map that uses the socketId as a key and SocketData as value
     socketMap.set(socketIdAutoIncrement, socketData)
-    idMap.add(socketIdAutoIncrement)
     console.log(`Client${socketIdAutoIncrement} connected`);
 
 
@@ -73,6 +71,18 @@ const server = tls.createServer(options, (socket) => {
 
             //If the message is sent with an option, the option is processed
 
+
+            //Edge case for exit
+
+            if(message[0] === '--exit'){
+                socketMap.forEach(({socket}, id) => {
+                    if(socketId !== id){
+                        socket.write(`Client${socketId} Disconnected`)
+                    }
+                })
+                senderSocket.socket.end()
+                return
+            }
             //Edge case for target messages
             if(message[0] === '--target'){  
                 const targetId = parseInt(message[1])               //Gets the client Id
@@ -87,7 +97,7 @@ const server = tls.createServer(options, (socket) => {
                     return
                 }
 
-                if(!idMap.has(targetId)){                           //Case to check if client Id exists
+                if(!socketMap.has(targetId)){                           //Case to check if client Id exists
                     socket.write("Client Id does not exist")
                     return
                 }
@@ -188,10 +198,6 @@ const server = tls.createServer(options, (socket) => {
 
             //Send the message to each client in a specific format
             socketMap.forEach(({socket, messages}, id)  => {
-                if(data.toString() == 'exit'){
-                    socket.write(`Server: Client${socketId} disconnected`)
-                    return
-                }
                 if(socketId === id){
                     socket.write(`${messageIdAutoIncrement} Me: ${data.toString()}`)
                     return
@@ -215,8 +221,7 @@ const server = tls.createServer(options, (socket) => {
     //Socket close handler
     socket.on('end', () => {
     socketMap.delete(socketId)
-    idMap.delete(socketId)
-    console.log('Client disconnected');
+    console.log(`Client${socketId} disconnected`);
     });
 });
 

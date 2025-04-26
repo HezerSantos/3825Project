@@ -37,7 +37,7 @@ rl.on('line', (input) => {
   readline.moveCursor(process.stdout, 0, -1); // This is for clearing the input. Important for manipulating how data is sent
   readline.clearLine(process.stdout, 0); //I am sending the data in a specific way which is why this is needed
   client.write(input); //Sends to server
-  if (input === 'exit') {
+  if (input === '--exit') {
     client.end();
     rl.close();
   }
